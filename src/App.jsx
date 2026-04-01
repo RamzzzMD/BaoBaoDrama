@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play, Github, MessageCircle, Send } from 'lucide-react';
+import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play, Github, MessageCircle, Send, Clock } from 'lucide-react';
 
 // ============================================================================
 // MOCK DATA (Fallback jika API Vercel tidak bisa diakses di lingkungan Preview)
@@ -26,7 +26,7 @@ const MOCK_DETAIL = {
 // ============================================================================
 // KOMPONEN: Header
 // ============================================================================
-const Header = ({ onSearch, goHome }) => {
+const Header = ({ onSearch, goHome, goHistory }) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (e) => {
@@ -36,10 +36,10 @@ const Header = ({ onSearch, goHome }) => {
 
   return (
     <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-pink-100 shadow-sm">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
         <div 
           onClick={goHome}
-          className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform"
+          className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0"
         >
           <div className="bg-pink-500 text-white p-2 rounded-xl shadow-md">
             <Tv size={24} />
@@ -47,20 +47,31 @@ const Header = ({ onSearch, goHome }) => {
           <h1 className="text-xl font-bold text-pink-600 hidden sm:block">BaoBao<span className="text-pink-400">Drama</span> 🍑</h1>
         </div>
         
-        <form onSubmit={handleSubmit} className="flex-1 max-w-sm ml-4">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Cari drama imut..." 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-pink-50 text-pink-900 placeholder-pink-300 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all border border-pink-100"
-            />
-            <button type="submit" className="absolute right-3 top-2.5 text-pink-400 hover:text-pink-600">
-              <Search size={18} />
-            </button>
-          </div>
-        </form>
+        <div className="flex items-center gap-2 flex-1 justify-end max-w-md">
+          <form onSubmit={handleSubmit} className="flex-1">
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Cari drama imut..." 
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-pink-50 text-pink-900 placeholder-pink-300 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all border border-pink-100"
+              />
+              <button type="submit" className="absolute right-3 top-2.5 text-pink-400 hover:text-pink-600">
+                <Search size={18} />
+              </button>
+            </div>
+          </form>
+
+          {/* Tombol History di Header */}
+          <button 
+            onClick={goHistory} 
+            className="p-2.5 bg-pink-100 text-pink-500 hover:bg-pink-500 hover:text-white rounded-full transition-all shadow-sm shrink-0"
+            title="Riwayat Tontonan"
+          >
+            <Clock size={20} />
+          </button>
+        </div>
       </div>
     </header>
   );
@@ -84,6 +95,13 @@ const DramaCard = ({ drama, onClick }) => (
       <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm text-pink-500">
         <Heart size={16} className="fill-pink-100" />
       </div>
+      
+      {/* Tambahan Badge Episode untuk History Card */}
+      {drama.lastEpisodeWatched && (
+        <div className="absolute bottom-2 left-2 bg-pink-500/90 text-white text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm shadow-sm">
+           Eps {drama.lastEpisodeWatched}
+        </div>
+      )}
     </div>
     <div className="p-3">
       <h3 className="font-bold text-gray-800 truncate text-sm sm:text-base">{drama.title}</h3>
@@ -94,6 +112,11 @@ const DramaCard = ({ drama, onClick }) => (
           </span>
         ))}
       </div>
+      {drama.watchedAt && (
+          <p className="text-[10px] text-gray-400 mt-2 truncate">
+              Ditonton: {new Date(drama.watchedAt).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+          </p>
+      )}
     </div>
   </div>
 );
@@ -149,10 +172,56 @@ export default function App() {
   
   const [homeDramas, setHomeDramas] = useState([]);
   const [searchDramas, setSearchDramas] = useState([]);
+  const [watchHistory, setWatchHistory] = useState([]); // State untuk menyimpan riwayat tontonan
   
   const [selectedDrama, setSelectedDrama] = useState(null);
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [streamUrl, setStreamUrl] = useState('');
+
+  // Muat History dari LocalStorage saat pertama kali
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('baobao_history');
+    if (savedHistory) {
+        try {
+            setWatchHistory(JSON.parse(savedHistory));
+        } catch (e) {
+            console.error("Gagal memuat riwayat tontonan", e);
+        }
+    }
+  }, []);
+
+  // Fungsi untuk menyimpan history ke LocalStorage
+  const saveToHistory = (drama, episode) => {
+      setWatchHistory(prevHistory => {
+          // Buat salinan history yang ada
+          const newHistory = [...prevHistory];
+          // Cari apakah drama ini sudah ada di history
+          const existingIndex = newHistory.findIndex(h => h.book_id === drama.book_id);
+          
+          const historyEntry = {
+              book_id: drama.book_id,
+              title: drama.title,
+              cover: drama.cover,
+              tags: drama.tags,
+              lastEpisodeWatched: episode.episode,
+              watchedAt: new Date().toISOString()
+          };
+
+          if (existingIndex >= 0) {
+              // Jika sudah ada, update entry tersebut dan pindahkan ke atas
+              newHistory.splice(existingIndex, 1);
+          }
+          
+          // Tambahkan ke paling atas
+          newHistory.unshift(historyEntry);
+          
+          // Simpan ke local storage (batasi misal 10 history terakhir)
+          const limitedHistory = newHistory.slice(0, 10);
+          localStorage.setItem('baobao_history', JSON.stringify(limitedHistory));
+          
+          return limitedHistory;
+      });
+  };
 
   // 0. Fetch Data Beranda (Home)
   const fetchHome = async () => {
@@ -196,7 +265,13 @@ export default function App() {
       const data = await res.json();
       setSelectedDrama(data);
     } catch (e) {
-      setSelectedDrama(MOCK_DETAIL);
+      // Coba cari dari data history jika ada (untuk fallback mockup)
+      const fromHistory = watchHistory.find(h => h.book_id === bookId);
+      if(fromHistory && !MOCK_DETAIL.book_id){
+          setSelectedDrama({...MOCK_DETAIL, title: fromHistory.title, cover: fromHistory.cover, book_id: fromHistory.book_id});
+      } else {
+         setSelectedDrama(MOCK_DETAIL);
+      }
     }
     setLoading(false);
   };
@@ -206,6 +281,12 @@ export default function App() {
     setLoading(true);
     setCurrentEpisode(episode);
     setView('player');
+    
+    // Simpan ke history saat mulai menonton
+    if(selectedDrama) {
+        saveToHistory(selectedDrama, episode);
+    }
+
     try {
       const res = await fetch(`/api/proxy?action=stream&videoId=${episode.video_id}`);
       if (!res.ok) throw new Error('API Unavailable');
@@ -231,7 +312,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-pink-50/50 font-sans">
-      <Header onSearch={fetchSearch} goHome={() => { setView('home'); setSearchQuery(''); }} />
+      <Header onSearch={fetchSearch} goHome={() => { setView('home'); setSearchQuery(''); }} goHistory={() => setView('history')} />
 
       <main className="max-w-4xl mx-auto px-4 py-6 w-full flex-grow pb-12">
         
@@ -263,6 +344,21 @@ export default function App() {
               <Star size={80} className="absolute right-32 top-4 text-yellow-200 opacity-30 transform rotate-12" />
             </div>
 
+            {/* Riwayat Tontonan Section (Hanya muncul jika ada history) */}
+            {watchHistory.length > 0 && (
+                <div className="mb-10">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Clock className="text-pink-500" size={20} />
+                        Lanjutkan Menonton
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {watchHistory.map((drama) => (
+                            <DramaCard key={`history-${drama.book_id}`} drama={drama} onClick={fetchDetail} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Heart className="text-pink-500 fill-pink-500" size={20} />
               Rekomendasi Spesial Untukmu
@@ -291,6 +387,33 @@ export default function App() {
             ) : (
               <div className="text-center py-10 text-gray-500">
                 <p>Waduh, drama tidak ditemukan 🥺</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VIEW: HISTORY (RIWAYAT KESELURUHAN) */}
+        {!loading && view === 'history' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <Clock className="text-pink-500 fill-pink-100" size={24} />
+              Riwayat Tontonan Kamu
+            </h2>
+            
+            {watchHistory.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {watchHistory.map((drama) => (
+                  <DramaCard key={`full-history-${drama.book_id}`} drama={drama} onClick={fetchDetail} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 flex flex-col items-center bg-white rounded-3xl shadow-sm border border-pink-50">
+                <Clock size={64} className="text-pink-200 mb-4" />
+                <p className="text-gray-500 font-medium">Belum ada riwayat tontonan nih.</p>
+                <p className="text-pink-400 font-medium mb-6">Yuk tonton drama favoritmu dulu! 🌸</p>
+                <button onClick={() => setView('home')} className="bg-pink-500 text-white px-6 py-2 rounded-full font-bold shadow-md hover:scale-105 transition-transform">
+                  Kembali ke Beranda
+                </button>
               </div>
             )}
           </div>
@@ -336,7 +459,10 @@ export default function App() {
                   <button 
                     key={eps.video_id}
                     onClick={() => fetchStream(eps)}
-                    className="aspect-square bg-white border-2 border-pink-100 rounded-2xl flex flex-col items-center justify-center text-pink-600 font-bold hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all shadow-sm hover:shadow-md hover:-translate-y-1"
+                    className={`aspect-square bg-white border-2 rounded-2xl flex flex-col items-center justify-center font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-1
+                        ${watchHistory.find(h => h.book_id === selectedDrama.book_id)?.lastEpisodeWatched === eps.episode 
+                            ? 'border-pink-500 text-pink-500 bg-pink-50' // Style untuk episode yang terakhir ditonton
+                            : 'border-pink-100 text-pink-600 hover:bg-pink-500 hover:text-white hover:border-pink-500'}`}
                   >
                     <Play size={20} className="mb-1 opacity-50" />
                     {eps.episode}
@@ -349,7 +475,7 @@ export default function App() {
 
         {/* VIEW: VIDEO PLAYER */}
         {!loading && view === 'player' && currentEpisode && (
-           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
+           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
              <button 
                 onClick={() => setView('detail')}
                 className="flex items-center text-pink-500 hover:text-pink-700 font-medium mb-4 bg-white px-4 py-2 rounded-full shadow-sm w-max"
@@ -357,7 +483,7 @@ export default function App() {
                 <ChevronLeft size={20} /> Kembali ke Detail
               </button>
 
-              <div className="bg-black rounded-3xl overflow-hidden shadow-xl aspect-video relative group">
+              <div className="bg-black rounded-3xl overflow-hidden shadow-2xl aspect-video relative group border-4 border-pink-100">
                 {streamUrl ? (
                    <video 
                      src={streamUrl} 
@@ -366,17 +492,34 @@ export default function App() {
                      className="w-full h-full object-contain"
                    />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-white">
-                    Video tidak tersedia.
+                  <div className="absolute inset-0 flex items-center justify-center text-white bg-gray-900">
+                    <div className="animate-pulse flex flex-col items-center">
+                        <PlayCircle size={48} className="text-pink-500 mb-4 opacity-50" />
+                        <span className="text-pink-200">Menyiapkan video...</span>
+                    </div>
                   </div>
                 )}
+                
+                {/* Overlay Judul saat Hover (opsional, tapi bagus untuk UX) */}
+                 <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <h3 className="text-white font-bold text-lg drop-shadow-md">{selectedDrama?.title} - Episode {currentEpisode.episode}</h3>
+                 </div>
               </div>
               
-              <div className="bg-white p-6 rounded-3xl shadow-sm mt-4 border border-pink-50">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {selectedDrama?.title} - Episode {currentEpisode.episode}
+              <div className="bg-white p-6 rounded-3xl shadow-sm mt-6 border border-pink-50">
+                <div className="flex items-center gap-3 mb-2">
+                    <span className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sedang Diputar</span>
+                    <span className="text-gray-400 text-sm flex items-center gap-1"><Heart size={14}/> Favoritmu</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">
+                  {selectedDrama?.title} 
                 </h2>
-                <p className="text-pink-500 font-medium mt-1">{currentEpisode.title}</p>
+                <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xl text-pink-500 font-bold">Episode {currentEpisode.episode}</span>
+                    {currentEpisode.title && currentEpisode.title !== `Episode ${currentEpisode.episode}` && (
+                        <span className="text-gray-500 font-medium border-l-2 border-pink-200 pl-2">{currentEpisode.title}</span>
+                    )}
+                </div>
               </div>
            </div>
         )}
