@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play } from 'lucide-react';
+import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play, Github, MessageCircle, Send } from 'lucide-react';
 
 // ============================================================================
 // MOCK DATA (Fallback jika API Vercel tidak bisa diakses di lingkungan Preview)
@@ -9,6 +9,10 @@ const MOCK_SEARCH = [
   { book_id: '2', title: 'Falling Into Your Smile', cover: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?auto=format&fit=crop&q=80&w=600', author: 'Qing Mei', tags: ['E-Sports', 'Romance'] },
   { book_id: '3', title: 'Hidden Love', cover: 'https://images.unsplash.com/photo-1525268771113-32d9e9021a97?auto=format&fit=crop&q=80&w=600', author: 'Zhu Yi', tags: ['Youth', 'Sweet'] },
   { book_id: '4', title: 'My Boss is Cute', cover: 'https://images.unsplash.com/photo-1516589178581-6cd7853d4f4f?auto=format&fit=crop&q=80&w=600', author: 'Tang Tang', tags: ['Comedy', 'Romance'] },
+  { book_id: '5', title: 'Love O2O', cover: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600', author: 'Gu Man', tags: ['Gaming', 'Romance'] },
+  { book_id: '6', title: 'Put Your Head on My Shoulder', cover: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600', author: 'Zhao Qianqian', tags: ['School', 'Sweet'] },
+  { book_id: '7', title: 'You Are My Glory', cover: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=600', author: 'Gu Man', tags: ['Aerospace', 'Romance'] },
+  { book_id: '8', title: 'Go Go Squid!', cover: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600', author: 'Mo Bao Fei Bao', tags: ['E-Sports', 'Comedy'] },
 ];
 
 const MOCK_DETAIL = {
@@ -95,32 +99,89 @@ const DramaCard = ({ drama, onClick }) => (
 );
 
 // ============================================================================
+// KOMPONEN: Footer
+// ============================================================================
+const Footer = () => (
+  <footer className="mt-auto bg-pink-100/50 pt-8 pb-6 border-t border-pink-200 text-center">
+    <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-5">
+      
+      {/* Deskripsi Singkat */}
+      <div className="max-w-md">
+        <h4 className="font-bold text-pink-600 mb-2 flex items-center justify-center gap-2">
+          <Tv size={18} /> Tentang BaoBaoDrama
+        </h4>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          BaoBaoDrama adalah tempat streaming Drama China pilihan dengan koleksi terimut dan terbaik. Nonton drama favoritmu dengan mudah, gratis, dan nyaman di sini! 🌸
+        </p>
+      </div>
+
+      {/* Kontak Admin */}
+      <div className="flex gap-4 mt-2">
+        <a href="https://github.com" target="_blank" rel="noreferrer" className="p-2.5 bg-white rounded-full text-gray-800 hover:text-white hover:bg-gray-800 hover:scale-110 transition-all shadow-sm" title="GitHub">
+          <Github size={20} />
+        </a>
+        <a href="https://wa.me" target="_blank" rel="noreferrer" className="p-2.5 bg-white rounded-full text-green-500 hover:text-white hover:bg-green-500 hover:scale-110 transition-all shadow-sm" title="WhatsApp">
+          <MessageCircle size={20} />
+        </a>
+        <a href="https://t.me" target="_blank" rel="noreferrer" className="p-2.5 bg-white rounded-full text-blue-500 hover:text-white hover:bg-blue-500 hover:scale-110 transition-all shadow-sm" title="Telegram">
+          <Send size={20} className="ml-0.5" />
+        </a>
+      </div>
+
+      {/* Watermark / Copyright */}
+      <div className="mt-2 px-4 py-2 bg-pink-50 rounded-full border border-pink-100 shadow-sm">
+        <p className="text-xs font-semibold text-pink-500 tracking-wide">
+          Ranzz © 2026 - Developed with <span className="text-red-500 animate-pulse inline-block">❤️</span>
+        </p>
+      </div>
+
+    </div>
+  </footer>
+);
+
+// ============================================================================
 // APP UTAMA (Main Container)
 // ============================================================================
 export default function App() {
-  const [view, setView] = useState('home'); // home, detail, player
+  const [view, setView] = useState('home'); // home, search, detail, player
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('ceo');
-  const [dramas, setDramas] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [homeDramas, setHomeDramas] = useState([]);
+  const [searchDramas, setSearchDramas] = useState([]);
   
   const [selectedDrama, setSelectedDrama] = useState(null);
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [streamUrl, setStreamUrl] = useState('');
 
+  // 0. Fetch Data Beranda (Home)
+  const fetchHome = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/proxy?action=search&query=romance&limit=12`);
+      if (!res.ok) throw new Error('API Unavailable');
+      const data = await res.json();
+      setHomeDramas(data);
+    } catch (e) {
+      setHomeDramas(MOCK_SEARCH);
+    }
+    setLoading(false);
+  };
+
   // 1. Fetch Daftar Drama (Search)
   const fetchSearch = async (query) => {
     setLoading(true);
-    setView('home');
+    setView('search');
     setSearchQuery(query);
     try {
       // Panggil API Vercel (Sesuaikan domain jika sudah rilis)
       const res = await fetch(`/api/proxy?action=search&query=${query}`);
       if (!res.ok) throw new Error('API Unavailable');
       const data = await res.json();
-      setDramas(data);
+      setSearchDramas(data);
     } catch (e) {
       console.warn("Menggunakan Mock Data (API Backend tidak terhubung di Preview)");
-      setDramas(MOCK_SEARCH);
+      setSearchDramas(MOCK_SEARCH);
     }
     setLoading(false);
   };
@@ -165,14 +226,14 @@ export default function App() {
 
   // Auto load saat pertama kali dibuka
   useEffect(() => {
-    fetchSearch('ceo');
+    fetchHome();
   }, []);
 
   return (
-    <div className="min-h-screen bg-pink-50/50 font-sans pb-10">
-      <Header onSearch={fetchSearch} goHome={() => setView('home')} />
+    <div className="min-h-screen flex flex-col bg-pink-50/50 font-sans">
+      <Header onSearch={fetchSearch} goHome={() => { setView('home'); setSearchQuery(''); }} />
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 w-full flex-grow pb-12">
         
         {/* LOADING STATE */}
         {loading && (
@@ -182,18 +243,56 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW: HOME / SEARCH */}
+        {/* VIEW: HOME / BERANDA UTAMA */}
         {!loading && view === 'home' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Hero Banner */}
+            <div className="bg-gradient-to-r from-pink-400 to-pink-500 rounded-3xl p-6 sm:p-10 text-white mb-8 shadow-lg relative overflow-hidden flex flex-col justify-center min-h-[200px]">
+              <div className="relative z-10 max-w-lg">
+                <h2 className="text-3xl sm:text-4xl font-extrabold mb-3">Selamat Datang di BaoBao! 🌸</h2>
+                <p className="text-pink-100 text-sm sm:text-base mb-5 leading-relaxed">
+                  Temukan ratusan drama China paling romantis, menggemaskan, dan bikin baper. Siapkan cemilanmu dan mulai maraton sekarang juga!
+                </p>
+                <button onClick={() => fetchSearch('ceo')} className="bg-white text-pink-500 px-6 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-transform w-max">
+                  Lihat Tren Populer
+                </button>
+              </div>
+              {/* Dekorasi BG */}
+              <Heart size={150} className="absolute -right-10 -bottom-10 text-pink-300 opacity-20 transform -rotate-12" />
+              <Star size={80} className="absolute right-32 top-4 text-yellow-200 opacity-30 transform rotate-12" />
+            </div>
+
             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Star className="text-yellow-400 fill-yellow-400" size={20} />
-              Hasil Pencarian: <span className="text-pink-500">"{searchQuery}"</span>
+              <Heart className="text-pink-500 fill-pink-500" size={20} />
+              Rekomendasi Spesial Untukmu
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {dramas.map((drama) => (
+              {homeDramas.map((drama) => (
                 <DramaCard key={drama.book_id} drama={drama} onClick={fetchDetail} />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* VIEW: SEARCH RESULTS */}
+        {!loading && view === 'search' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Search className="text-pink-500" size={20} />
+              Hasil Pencarian: <span className="text-pink-500">"{searchQuery}"</span>
+            </h2>
+            {searchDramas.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {searchDramas.map((drama) => (
+                  <DramaCard key={drama.book_id} drama={drama} onClick={fetchDetail} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 text-gray-500">
+                <p>Waduh, drama tidak ditemukan 🥺</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -283,6 +382,9 @@ export default function App() {
         )}
 
       </main>
+
+      {/* FOOTER BARU DITAMBAHKAN DI SINI */}
+      <Footer />
     </div>
   );
 }
