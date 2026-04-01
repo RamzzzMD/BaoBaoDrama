@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play, Github, MessageCircle, Send, Clock } from 'lucide-react';
+import { Search, PlayCircle, Star, ChevronLeft, Tv, Heart, Play, Github, MessageCircle, Send, Clock, Menu, X, SkipForward } from 'lucide-react';
 
 // ============================================================================
 // MOCK DATA (Fallback jika API Vercel tidak bisa diakses di lingkungan Preview)
@@ -177,6 +177,7 @@ export default function App() {
   const [selectedDrama, setSelectedDrama] = useState(null);
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [streamUrl, setStreamUrl] = useState('');
+  const [isEpisodeMenuOpen, setIsEpisodeMenuOpen] = useState(false); // State untuk drawer episode
 
   // Muat History dari LocalStorage saat pertama kali
   useEffect(() => {
@@ -280,6 +281,7 @@ export default function App() {
   const fetchStream = async (episode) => {
     setLoading(true);
     setCurrentEpisode(episode);
+    setIsEpisodeMenuOpen(false); // Tutup menu episode jika terbuka
     setView('player');
     
     // Simpan ke history saat mulai menonton
@@ -304,6 +306,24 @@ export default function App() {
     }
     setLoading(false);
   };
+
+  // 4. Handle Video Berakhir (Auto Next Episode)
+  const handleVideoEnded = () => {
+      if (!selectedDrama || !selectedDrama.episodes || !currentEpisode) return;
+      
+      // Cari index episode saat ini
+      const currentIndex = selectedDrama.episodes.findIndex(e => e.video_id === currentEpisode.video_id);
+      
+      // Jika ada episode selanjutnya, putar otomatis
+      if (currentIndex !== -1 && currentIndex + 1 < selectedDrama.episodes.length) {
+          const nextEpisode = selectedDrama.episodes[currentIndex + 1];
+          fetchStream(nextEpisode);
+      }
+  };
+
+  // Cek jika ada episode selanjutnya (untuk tombol Next)
+  const hasNextEpisode = selectedDrama && currentEpisode && 
+        selectedDrama.episodes.findIndex(e => e.video_id === currentEpisode.video_id) + 1 < selectedDrama.episodes.length;
 
   // Auto load saat pertama kali dibuka
   useEffect(() => {
@@ -476,12 +496,48 @@ export default function App() {
         {/* VIEW: VIDEO PLAYER */}
         {!loading && view === 'player' && currentEpisode && (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
-             <button 
-                onClick={() => setView('detail')}
-                className="flex items-center text-pink-500 hover:text-pink-700 font-medium mb-4 bg-white px-4 py-2 rounded-full shadow-sm w-max"
-              >
-                <ChevronLeft size={20} /> Kembali ke Detail
-              </button>
+             <div className="flex justify-between items-center mb-4">
+                 <button 
+                    onClick={() => setView('detail')}
+                    className="flex items-center text-pink-500 hover:text-pink-700 font-medium bg-white px-4 py-2 rounded-full shadow-sm w-max"
+                  >
+                    <ChevronLeft size={20} /> <span className="hidden sm:inline ml-1">Kembali</span>
+                  </button>
+
+                  {/* Tombol Hamburger Menu Episode */}
+                  <button 
+                    onClick={() => setIsEpisodeMenuOpen(!isEpisodeMenuOpen)}
+                    className={`flex items-center gap-2 font-medium px-4 py-2 rounded-full shadow-sm transition-all 
+                        ${isEpisodeMenuOpen ? 'bg-pink-500 text-white' : 'bg-white text-pink-500 hover:text-pink-700'}`}
+                  >
+                    {isEpisodeMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                    <span className="hidden sm:inline">Pilih Episode</span>
+                  </button>
+             </div>
+
+              {/* Drawer Daftar Episode */}
+              {isEpisodeMenuOpen && (
+                 <div className="bg-white p-4 rounded-3xl shadow-sm mb-4 border border-pink-50 animate-in slide-in-from-top-2">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-gray-800">Daftar Episode</h3>
+                        <span className="text-xs font-bold bg-pink-100 text-pink-600 px-2 py-1 rounded-full">{selectedDrama.episodes.length} Eps</span>
+                    </div>
+                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 max-h-48 overflow-y-auto p-1 scrollbar-hide">
+                        {selectedDrama.episodes.map((eps) => (
+                            <button 
+                                key={eps.video_id}
+                                onClick={() => fetchStream(eps)}
+                                className={`aspect-square rounded-xl flex items-center justify-center font-bold transition-all shadow-sm hover:scale-105
+                                    ${currentEpisode.video_id === eps.video_id 
+                                        ? 'bg-pink-500 text-white shadow-md' 
+                                        : 'bg-pink-50 text-pink-600 hover:bg-pink-100'}`}
+                            >
+                                {eps.episode}
+                            </button>
+                        ))}
+                    </div>
+                 </div>
+              )}
 
               <div className="bg-black rounded-3xl overflow-hidden shadow-2xl aspect-video relative group border-4 border-pink-100">
                 {streamUrl ? (
@@ -489,6 +545,7 @@ export default function App() {
                      src={streamUrl} 
                      controls 
                      autoPlay 
+                     onEnded={handleVideoEnded} // Pemicu otomatis pindah episode
                      className="w-full h-full object-contain"
                    />
                 ) : (
@@ -500,24 +557,38 @@ export default function App() {
                   </div>
                 )}
                 
-                {/* Overlay Judul saat Hover (opsional, tapi bagus untuk UX) */}
+                {/* Overlay Judul saat Hover */}
                  <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                     <h3 className="text-white font-bold text-lg drop-shadow-md">{selectedDrama?.title} - Episode {currentEpisode.episode}</h3>
                  </div>
               </div>
               
               <div className="bg-white p-6 rounded-3xl shadow-sm mt-6 border border-pink-50">
-                <div className="flex items-center gap-3 mb-2">
-                    <span className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sedang Diputar</span>
-                    <span className="text-gray-400 text-sm flex items-center gap-1"><Heart size={14}/> Favoritmu</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">
-                  {selectedDrama?.title} 
-                </h2>
-                <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xl text-pink-500 font-bold">Episode {currentEpisode.episode}</span>
-                    {currentEpisode.title && currentEpisode.title !== `Episode ${currentEpisode.episode}` && (
-                        <span className="text-gray-500 font-medium border-l-2 border-pink-200 pl-2">{currentEpisode.title}</span>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sedang Diputar</span>
+                            <span className="text-gray-400 text-sm flex items-center gap-1"><Heart size={14}/> Favoritmu</span>
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800">
+                          {selectedDrama?.title} 
+                        </h2>
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xl text-pink-500 font-bold">Episode {currentEpisode.episode}</span>
+                            {currentEpisode.title && currentEpisode.title !== `Episode ${currentEpisode.episode}` && (
+                                <span className="text-gray-500 font-medium border-l-2 border-pink-200 pl-2">{currentEpisode.title}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Tombol Next Manual (Jika ada episode selanjutnya) */}
+                    {hasNextEpisode && (
+                        <button 
+                            onClick={handleVideoEnded}
+                            className="flex items-center gap-1 bg-pink-50 text-pink-600 hover:bg-pink-500 hover:text-white px-4 py-2.5 rounded-xl transition-all font-semibold shadow-sm shrink-0"
+                        >
+                            <span className="hidden sm:inline">Next</span> <SkipForward size={18} />
+                        </button>
                     )}
                 </div>
               </div>
@@ -526,7 +597,7 @@ export default function App() {
 
       </main>
 
-      {/* FOOTER BARU DITAMBAHKAN DI SINI */}
+      {/* FOOTER */}
       <Footer />
     </div>
   );
