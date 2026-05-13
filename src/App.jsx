@@ -565,4 +565,39 @@ export default function App() {
               </div>
               
               <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-xl shadow-pink-100/30 mt-6 border border-pink-50">
-                <div className="flex flex-col sm:flex-row justify-between
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-3">
+                            <span className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                              <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span> Diputar
+                            </span>
+                        </div>
+                        <h2 className="text-2xl sm:text-4xl font-extrabold text-gray-800 leading-tight">
+                          {selectedDrama?.title} 
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                            <span className="text-xl text-pink-500 font-extrabold bg-pink-50 px-4 py-1 rounded-xl border border-pink-100">Eps {currentEpisode.episode}</span>
+                            {currentEpisode.title && currentEpisode.title !== `Episode ${currentEpisode.episode}` && (
+                                <span className="text-gray-500 font-medium bg-gray-50 px-4 py-1.5 rounded-xl border border-gray-100">{currentEpisode.title}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {hasNextEpisode && (
+                        <button 
+                            onClick={handleVideoEnded}
+                            className="w-full sm:w-auto flex justify-center items-center gap-2 bg-gradient-to-r from-pink-400 to-pink-500 text-white hover:from-pink-500 hover:to-pink-600 px-6 py-3.5 rounded-2xl transition-all duration-300 font-bold shadow-lg shadow-pink-200 hover:scale-105 hover:-translate-y-1 shrink-0"
+                        >
+                            <span className="text-lg">Episode Selanjutnya</span> <SkipForward size={20} className="animate-pulse" />
+                        </button>
+                    )}
+                </div>
+              </div>
+           </div>
+        )}
+
+      </main>
+      <Footer />
+    </div>
+  );
+}
