@@ -87,9 +87,13 @@ const DramaCard = ({ drama, onClick }) => (
   >
     <div className="relative aspect-[3/4] overflow-hidden">
       <img 
-        // Ubah format heic ke png langsung saat merender gambar di card (berlaku untuk Home, Search, dan History)
-        src={drama.cover ? drama.cover.replace(/\.heic/gi, '.png') : ''} 
+        // A. Gunakan || agar jika drama.cover kosong, otomatis pakai gambar placeholder
+        src={drama.cover || 'https://via.placeholder.com/300x400/fdf2f8/ec4899?text=Drama'} 
         alt={drama.title} 
+        
+        // B. WAJIB DITAMBAHKAN: Bypass perlindungan hotlink gambar dari server API
+        referrerPolicy="no-referrer" 
+        
         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         onError={(e) => { e.target.src = 'https://via.placeholder.com/300x400/fdf2f8/ec4899?text=Drama' }}
       />
