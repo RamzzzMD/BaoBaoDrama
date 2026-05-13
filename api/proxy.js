@@ -124,7 +124,8 @@ const melolo = {
                         results.push({
                             title: book.book_name,
                             book_id: book.book_id,
-                            cover: book.thumb_url,
+                            // Tambahkan replace di sini
+                            cover: book.thumb_url ? book.thumb_url.replace(/\.heic/gi, '.png') : book.thumb_url,
                             author: book.author,
                             sinopsis: book.abstract,
                             status: book.show_creation_status,
@@ -175,13 +176,16 @@ const melolo = {
             title: v.title,
             duration: v.duration,
             likes: v.digged_count,
-            cover: v.cover
+            // PERUBAHAN PERTAMA: Tambahkan replace() pada v.cover
+            cover: v.cover ? v.cover.replace(/\.heic/gi, '.png') : v.cover
         }));
+        
         return {
             book_id: data.series_id_str || bookId,
             title: data.series_title,
             intro: data.series_intro,
-            cover: data.series_cover,
+            // PERUBAHAN KEDUA: Tambahkan replace() pada data.series_cover
+            cover: data.series_cover ? data.series_cover.replace(/\.heic/gi, '.png') : data.series_cover,
             total_episodes: data.episode_cnt,
             tags: tags,
             status: data.series_status === 1 ? "Ongoing" : "Completed",
