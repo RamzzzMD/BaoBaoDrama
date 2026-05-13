@@ -87,7 +87,8 @@ const DramaCard = ({ drama, onClick }) => (
   >
     <div className="relative aspect-[3/4] overflow-hidden">
       <img 
-        src={drama.cover} 
+        // Ubah format heic ke png langsung saat merender gambar di card (berlaku untuk Home, Search, dan History)
+        src={drama.cover ? drama.cover.replace(/\.heic/gi, '.png') : ''} 
         alt={drama.title} 
         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         onError={(e) => { e.target.src = 'https://via.placeholder.com/300x400/fdf2f8/ec4899?text=Drama' }}
