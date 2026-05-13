@@ -94,20 +94,34 @@ const Header = ({ onSearch, goHome, goHistory }) => {
 // KOMPONEN: Drama Card
 // ============================================================================
 const DramaCard = ({ drama, onClick }) => {
-  const finalCover = getValidCover(drama);
+  // Gambar fallback (kucing pink aesthetic) yang dijamin bisa diload jika API error
+  const fallbackImg = 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=400';
+  
+  // Ambil gambar yang valid
+  let rawCover = drama.cover || drama.thumb_url || drama.cover_url || '';
+  if (Array.isArray(rawCover)) rawCover = rawCover[0];
+  
+  let finalCover = (typeof rawCover === 'string' && rawCover.trim() !== '') 
+    ? rawCover.replace(/\.heic/gi, '.png') 
+    : fallbackImg;
 
   return (
     <div 
       onClick={() => onClick(drama.book_id)}
       className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-pink-200/60 transition-all duration-500 cursor-pointer group hover:-translate-y-2 border border-pink-50 flex flex-col h-full"
     >
-      <div className="relative aspect-[3/4] overflow-hidden rounded-t-3xl">
+      <div className="relative aspect-[3/4] overflow-hidden rounded-t-3xl bg-pink-50">
         <img 
           src={finalCover} 
           alt={drama.title} 
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-transform duration-700 ease-out"
-          onError={(e) => { e.target.src = 'https://via.placeholder.com/300x400/fdf2f8/ec4899?text=Drama+Imut+🍑' }}
+          onError={(e) => { 
+             // Cegah infinite loop jika gambar utama gagal dimuat
+             if (e.target.src !== fallbackImg) {
+                e.target.src = fallbackImg;
+             }
+          }}
         />
         
         {/* Love Overlay Animation */}
