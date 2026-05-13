@@ -121,21 +121,21 @@ const melolo = {
             searchData.forEach(section => {
                 if (section.books && Array.isArray(section.books)) {
                     section.books.forEach(book => {
-                        // 1. Ambil URL gambar dari beberapa kemungkinan properti API
-                        let imageUrl = book.thumb_url || book.cover_url || book.cover || book.pic_url || '';
+                        // 1. CARI SEMUA KEMUNGKINAN NAMA PROPERTI GAMBAR DARI API
+                        let imageUrl = book.thumb_url || book.cover_url || book.cover || book.pic_url || book.book_cover || '';
                         
-                        // 2. Jika bentuknya Array, ambil item pertamanya
+                        // 2. Jika bentuknya array, ambil item pertama
                         if (Array.isArray(imageUrl)) imageUrl = imageUrl[0];
                         
-                        // 3. Ubah format heic ke png
-                        if (typeof imageUrl === 'string') {
+                        // 3. Ubah .heic menjadi .png
+                        if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
                             imageUrl = imageUrl.replace(/\.heic/gi, '.png');
                         }
 
                         results.push({
                             title: book.book_name,
                             book_id: book.book_id,
-                            cover: imageUrl, // <-- Gunakan variabel imageUrl yang sudah diproses
+                            cover: imageUrl, // <-- Masukkan imageUrl yang sudah difilter
                             author: book.author,
                             sinopsis: book.abstract,
                             status: book.show_creation_status,
