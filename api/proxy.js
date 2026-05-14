@@ -23,52 +23,59 @@ const generateUUID = () => {
 };
 
 const CONFIG = {
-    BASE_URL: "https://api.tmtreader.com",
-    HEADERS: {
-        "Host": "api.tmtreader.com",
-        "Accept": "application/json; charset=utf-8,application/x-protobuf",
-        "X-Xs-From-Web": "false",
-        "Age-Range": "8",
-        "Sdk-Version": "2",
-        "Passport-Sdk-Version": "50357",
-        "X-Vc-Bdturing-Sdk-Version": "2.2.1.i18n",
-        "User-Agent": "com.worldance.drama/49819 (Linux; U; Android 9; in; SM-N976N; Build/QP1A.190711.020;tt-ok/3.12.13.17)",
-    },
-    COMMON_PARAMS: {
-        "iid": generateRandomId(19),
-        "device_id": generateRandomId(19),
-        "ac": "wifi",
-        "channel": "gp",
-        "aid": "645713",
-        "app_name": "Melolo",
-        "version_code": "49819",
-        "version_name": "4.9.8",
-        "device_platform": "android",
-        "os": "android",
-        "ssmix": "a",
-        "device_type": "ScRaPe",
-        "device_brand": "Shannz",
-        "language": "in",
-        "os_api": "28",
-        "os_version": "15",
-        "openudid": generateOpenUdid(),
-        "manifest_version_code": "49819",
-        "resolution": "900*1600",
-        "dpi": "320",
-        "update_version_code": "49819",
-        "current_region": "ID",
-        "carrier_region": "ID",
-        "app_language": "id",
-        "sys_language": "in",
-        "app_region": "ID",
-        "sys_region": "ID",
-        "mcc_mnc": "46002",
-        "carrier_region_v2": "460",
-        "user_language": "id",
-        "time_zone": "Asia/Jakarta",
-        "ui_language": "in",
-        "cdid": generateUUID(),
-    }
+  BASE_URL: 'https://api.tmtreader.com',
+  HEADERS: {
+    'Accept': 'application/json; charset=utf-8,application/x-protobuf',
+    'X-Xs-From-Web': 'false',
+    'Age-Range': '8',
+    'Sdk-Version': '2',
+    'Passport-Sdk-Version': '50357',
+    'X-Vc-Bdturing-Sdk-Version': '2.2.1.i18n',
+    // Bikin User-Agent lebih spesifik mirip aslinya
+    'User-Agent': 'com.worldance.drama/49819 (Linux; U; Android 13; in_ID; SM-G991B; Build/TP1A.220624.014; Cronet/TTNetVersion)',
+    // Header sakti untuk ngelewatin Shark
+    'x-tt-bdturing-version': '2.2.1.i18n',
+    'x-tt-bdturing-pop-scene': '1',
+    // Dummy cookie odin_tt (sering diminta sama endpoint stream)
+    'Cookie': 'odin_tt=324c4731a52003c0032b4927b203170e1c0c20173820061e38100523271131102f2322312b2e113636123403173a1e2f3a21350a2e043003021115160b0c2e39; install_id=7401827361928371928; ttreq=1$64b38fa1583d7f999127814b7e84ab4b6d491f24'
+  },
+  COMMON_PARAMS: {
+    // JANGAN DI-RANDOM LAGI! Gunakan ID statis agar server mengira ini dari HP yang sama.
+    iid: '7401827361928371928', 
+    device_id: '7394827163829102837',
+    ac: 'wifi',
+    channel: 'gp',
+    aid: '645713',
+    app_name: 'Melolo',
+    version_code: '49819',
+    version_name: '4.9.8',
+    device_platform: 'android',
+    os: 'android',
+    ssmix: 'a',
+    device_type: 'SM-G991B',
+    device_brand: 'samsung',
+    language: 'in',
+    os_api: '33', // Sesuaikan dengan Android 13 di User-Agent
+    os_version: '13',
+    // Biarkan openudid & cdid random nggak masalah, yang penting device_id statis
+    openudid: generateOpenUdid(), 
+    manifest_version_code: '49819',
+    resolution: '1080*2400', // Ukuran layar wajar
+    dpi: '480',
+    update_version_code: '49819',
+    current_region: 'ID',
+    carrier_region: 'ID',
+    app_language: 'id',
+    sys_language: 'in',
+    app_region: 'ID',
+    sys_region: 'ID',
+    mcc_mnc: '51010', // Pake MCC MNC Telkomsel biar lebih legit (awalnya 46002 itu China Mobile)
+    carrier_region_v2: '510',
+    user_language: 'id',
+    time_zone: 'Asia/Jakarta',
+    ui_language: 'in',
+    cdid: generateUUID()
+  }
 };
 
 const generateRticket = () => String(Math.floor(Date.now() * 1000) + Math.floor(Math.random() * 1000));
