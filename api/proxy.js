@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // =======================================================================
-// HELPER FUNCTIONS DARI SCRIPT ASLI
+// HELPER FUNCTIONS
 // =======================================================================
 const generateRandomId = (length = 19) => {
     let result = '';
@@ -76,7 +76,7 @@ const CONFIG = {
 };
 
 const generateRticket = () => {
-    return String(Math.floor(Date.now() * 1000) + Math.floor(Math.random() * 1000));
+    return String(Math.floor(Date.now()) + Math.floor(Math.random() * 1000));
 };
 
 const request = async (method, endpoint, params = {}, data = null, customHeaders = {}) => {
@@ -91,15 +91,33 @@ const request = async (method, endpoint, params = {}, data = null, customHeaders
             method,
             url,
             headers: { ...CONFIG.HEADERS, ...customHeaders },
-            params: finalParams,
-            data
+            params: finalParams
         };
+
+        // Cegah pengiriman payload 'data' jika request GET agar API tidak error 400
+        if (data && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+            config.data = data;
+        }
+
         const response = await axios(config);
         return response.data;
     } catch (error) {
         const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
         throw new Error(`Melolo API Error: ${errorMsg}`);
     }
+};
+
+// HELPER: Decode Base64 URL 
+const decodeUrl = (str) => {
+    if (!str) return null;
+    if (str.startsWith('http')) return str;
+    try {
+        const decoded = Buffer.from(str, 'base64').toString('utf-8');
+        if (decoded.startsWith('http')) return decoded;
+    } catch (e) {
+        console.warn("Gagal decode URL URL:", str);
+    }
+    return null;
 };
 
 const melolo = {
@@ -121,13 +139,8 @@ const melolo = {
             searchData.forEach(section => {
                 if (section.books && Array.isArray(section.books)) {
                     section.books.forEach(book => {
-                        // 1. CARI SEMUA KEMUNGKINAN NAMA PROPERTI GAMBAR DARI API
                         let imageUrl = book.thumb_url || book.cover_url || book.cover || book.pic_url || book.book_cover || '';
-                        
-                        // 2. Jika bentuknya array, ambil item pertama
                         if (Array.isArray(imageUrl)) imageUrl = imageUrl[0];
-                        
-                        // 3. Ubah .heic menjadi .png
                         if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
                             imageUrl = imageUrl.replace(/\.heic/gi, '.png');
                         }
@@ -135,7 +148,7 @@ const melolo = {
                         results.push({
                             title: book.book_name,
                             book_id: book.book_id,
-                            cover: imageUrl, // <-- Masukkan imageUrl yang sudah difilter
+                            cover: imageUrl,
                             author: book.author,
                             sinopsis: book.abstract,
                             status: book.show_creation_status,
@@ -166,7 +179,7 @@ const melolo = {
                 "use_os_player": false,
                 "video_id_type": 1
             },
-            "series_id": bookId
+            "series_id": String(bookId)
         };
         const json = await request('POST', endpoint, {}, payload, headers);
         const data = json?.data?.video_data || {}; 
@@ -186,7 +199,6 @@ const melolo = {
             title: v.title,
             duration: v.duration,
             likes: v.digged_count,
-            // PERUBAHAN PERTAMA: Tambahkan replace() pada v.cover
             cover: v.cover ? v.cover.replace(/\.heic/gi, '.png') : v.cover
         }));
         
@@ -194,7 +206,6 @@ const melolo = {
             book_id: data.series_id_str || bookId,
             title: data.series_title,
             intro: data.series_intro,
-            // PERUBAHAN KEDUA: Tambahkan replace() pada data.series_cover
             cover: data.series_cover ? data.series_cover.replace(/\.heic/gi, '.png') : data.series_cover,
             total_episodes: data.episode_cnt,
             tags: tags,
@@ -222,20 +233,24 @@ const melolo = {
                 "video_id_type": 0,
                 "video_platform": 3
             },
-            "video_id": videoId
+            "video_id": String(videoId) // Mengamankan video ID sebagai string
         };
+        
         const json = await request('POST', endpoint, {}, payload, headers);
         const raw = json?.data || {};
+        
         let result = {
             status: true,
-            url: raw.main_url,
-            backup_url: raw.backup_url,
+            // Selalu decode URL karena API sering merespons dalam Base64
+            url: decodeUrl(raw.main_url),
+            backup_url: decodeUrl(raw.backup_url),
             expire_at: raw.expire_time,
             width: raw.video_width,
             height: raw.video_height,
             metadata: {},
             downloads: []
         };
+        
         try {
             if (raw.video_model) {
                 const model = JSON.parse(raw.video_model);
@@ -247,24 +262,36 @@ const melolo = {
                 };
                 if (model.video_list) {
                     Object.values(model.video_list).forEach(item => {
-                        let videoUrl = item.main_url;
-                        if (videoUrl && !videoUrl.startsWith('http')) {
-                            try { videoUrl = Buffer.from(videoUrl, 'base64').toString('utf-8'); } catch (err) {}
+                        let videoUrl = decodeUrl(item.main_url) || decodeUrl(item.main_play_url);
+                        
+                        if (videoUrl) {
+                            result.downloads.push({
+                                quality: item.definition,
+                                size: item.size,
+                                fps: item.fps,
+                                url: videoUrl
+                            });
                         }
-                        result.downloads.push({
-                            quality: item.definition,
-                            size: item.size,
-                            fps: item.fps,
-                            url: videoUrl
-                        });
                     });
-                    result.downloads.sort((a, b) => b.size - a.size);
+                    // Urutkan dari ukuran terbesar (kualitas terbaik)
+                    result.downloads.sort((a, b) => (b.size || 0) - (a.size || 0));
                 }
             }
         } catch (error) {
             result.status = false;
             result.error = "Failed to parse detailed video model";
         }
+
+        // Fallback: Pastikan React app bisa menampilkan link video
+        if (result.downloads.length === 0 && result.url) {
+            result.downloads.push({
+                quality: 'default',
+                size: 0,
+                fps: 0,
+                url: result.url
+            });
+        }
+
         return result;
     }
 };
@@ -273,7 +300,6 @@ const melolo = {
 // VERCEL SERVERLESS FUNCTION HANDLER
 // =======================================================================
 export default async function handler(req, res) {
-    // Enable CORS agar bisa diakses dari frontend mana saja
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
