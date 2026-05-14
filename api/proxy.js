@@ -75,8 +75,9 @@ const CONFIG = {
     }
 };
 
+// KEMBALIKAN KE MICROSECONDS AGAR TIDAK DITOLAK SERVER
 const generateRticket = () => {
-    return String(Math.floor(Date.now()) + Math.floor(Math.random() * 1000));
+    return String(Math.floor(Date.now() * 1000) + Math.floor(Math.random() * 1000));
 };
 
 const request = async (method, endpoint, params = {}, data = null, customHeaders = {}) => {
@@ -94,7 +95,6 @@ const request = async (method, endpoint, params = {}, data = null, customHeaders
             params: finalParams
         };
 
-        // Cegah pengiriman payload 'data' jika request GET agar API tidak error 400
         if (data && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
             config.data = data;
         }
@@ -107,17 +107,16 @@ const request = async (method, endpoint, params = {}, data = null, customHeaders
     }
 };
 
-// HELPER: Decode Base64 URL 
+// FUNGSI DECODE YANG LEBIH AMAN
 const decodeUrl = (str) => {
     if (!str) return null;
+    if (typeof str !== 'string') return str;
     if (str.startsWith('http')) return str;
     try {
         const decoded = Buffer.from(str, 'base64').toString('utf-8');
         if (decoded.startsWith('http')) return decoded;
-    } catch (e) {
-        console.warn("Gagal decode URL URL:", str);
-    }
-    return null;
+    } catch (e) {}
+    return str; 
 };
 
 const melolo = {
@@ -233,7 +232,7 @@ const melolo = {
                 "video_id_type": 0,
                 "video_platform": 3
             },
-            "video_id": String(videoId) // Mengamankan video ID sebagai string
+            "video_id": String(videoId)
         };
         
         const json = await request('POST', endpoint, {}, payload, headers);
@@ -241,7 +240,6 @@ const melolo = {
         
         let result = {
             status: true,
-            // Selalu decode URL karena API sering merespons dalam Base64
             url: decodeUrl(raw.main_url),
             backup_url: decodeUrl(raw.backup_url),
             expire_at: raw.expire_time,
@@ -253,83 +251,46 @@ const melolo = {
         
         try {
             if (raw.video_model) {
-                const model = JSON.parse(raw.video_model);
+                const model = typeof raw.video_model === 'string' ? JSON.parse(raw.video_model) : raw.video_model;
                 const thumbs = model.big_thumbs || [];
                 result.metadata = {
                     id: model.video_id,
                     duration: model.video_duration,
                     thumbnail: thumbs.length > 0 ? thumbs[0].img_url : null
                 };
+                
                 if (model.video_list) {
                     Object.values(model.video_list).forEach(item => {
                         let videoUrl = decodeUrl(item.main_url) || decodeUrl(item.main_play_url);
-                        
                         if (videoUrl) {
                             result.downloads.push({
                                 quality: item.definition,
                                 size: item.size,
                                 fps: item.fps,
+                                vcodec: item.vcodec || item.codec_type || '', // Ambil info codec
                                 url: videoUrl
                             });
                         }
                     });
-                    // Urutkan dari ukuran terbesar (kualitas terbaik)
-                    result.downloads.sort((a, b) => (b.size || 0) - (a.size || 0));
+
+                    // PRIORITAS: Utamakan codec h264 karena h265(bytevc1) sering error di browser
+                    result.downloads.sort((a, b) => {
+                        const aIsH264 = String(a.vcodec).toLowerCase().includes('h264');
+                        const bIsH264 = String(b.vcodec).toLowerCase().includes('h264');
+                        
+                        if (aIsH264 && !bIsH264) return -1;
+                        if (!aIsH264 && bIsH264) return 1;
+                        
+                        return (b.size || 0) - (a.size || 0);
+                    });
                 }
             }
         } catch (error) {
+            console.error("Error parsing video_model:", error);
             result.status = false;
             result.error = "Failed to parse detailed video model";
         }
 
-        // Fallback: Pastikan React app bisa menampilkan link video
+        // Fallback jika API tidak memberikan list, tapi main_url tersedia
         if (result.downloads.length === 0 && result.url) {
-            result.downloads.push({
-                quality: 'default',
-                size: 0,
-                fps: 0,
-                url: result.url
-            });
-        }
-
-        return result;
-    }
-};
-
-// =======================================================================
-// VERCEL SERVERLESS FUNCTION HANDLER
-// =======================================================================
-export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
-
-    const { action, query, bookId, videoId, offset } = req.query;
-
-    try {
-        if (action === 'search') {
-            const data = await melolo.search(query || 'ceo', parseInt(offset) || 0);
-            return res.status(200).json(data);
-        }
-        if (action === 'detail') {
-            if (!bookId) return res.status(400).json({error: "bookId required"});
-            const data = await melolo.detail(bookId);
-            return res.status(200).json(data);
-        }
-        if (action === 'stream') {
-            if (!videoId) return res.status(400).json({error: "videoId required"});
-            const data = await melolo.stream(videoId);
-            return res.status(200).json(data);
-        }
-        return res.status(400).json({error: "Invalid action. Use ?action=search|detail|stream"});
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({error: error.message});
-    }
-}
+            result.downloads.
