@@ -553,12 +553,13 @@ export default function App() {
               <div className="bg-black rounded-[2rem] overflow-hidden shadow-2xl shadow-pink-900/20 aspect-video relative group border-[6px] border-white ring-1 ring-pink-100">
                 {streamUrl ? (
                    <video 
-                     src={streamUrl} 
-                     controls 
-                     autoPlay 
-                     onEnded={handleVideoEnded}
-                     className="w-full h-full object-contain bg-gray-900"
-                   />
+                         src={streamUrl} 
+                         controls 
+                         autoPlay 
+                         onEnded={handleVideoEnded}
+                         referrerPolicy="no-referrer" 
+                         className="w-full h-full object-contain bg-gray-900"
+                      />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-white bg-gray-900">
                     <div className="animate-pulse flex flex-col items-center">
