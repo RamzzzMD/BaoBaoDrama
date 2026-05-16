@@ -328,7 +328,13 @@ const melolo = {
 
         // Pastikan url utamanya dapet link yang valid dari downloads
         if (result.downloads.length > 0) {
-             result.url = result.downloads[0].url;
+             const rawUrl = result.downloads[0].url;
+             
+             // Ganti dengan URL Cloudflare Worker kamu yang asli
+             const workerUrl = 'https://bao-bao-video.ramdangani7905.workers.dev';
+             
+             // Gabungkan URL worker dengan target URL yang di-encode
+             result.url = `${workerUrl}/?url=${encodeURIComponent(rawUrl)}`;
         }
 
         if (!result.url && result.downloads.length === 0) {
